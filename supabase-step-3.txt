@@ -1,0 +1,23 @@
+DROP POLICY IF EXISTS "Anyone can view orders." ON public.orders;
+CREATE POLICY "Anyone can view orders."
+  ON public.orders FOR SELECT
+  USING ( true );
+
+DROP POLICY IF EXISTS "Anyone can update orders." ON public.orders;
+CREATE POLICY "Anyone can update orders."
+  ON public.orders FOR UPDATE
+  USING ( true );
+
+DROP POLICY IF EXISTS "Authenticated users manage categories" ON public.categories;
+CREATE POLICY "Authenticated users manage categories"
+  ON public.categories FOR ALL
+  TO authenticated
+  USING ( true )
+  WITH CHECK ( true );
+
+DROP POLICY IF EXISTS "Authenticated users manage products" ON public.products;
+CREATE POLICY "Authenticated users manage products"
+  ON public.products FOR ALL
+  TO authenticated
+  USING ( true )
+  WITH CHECK ( true );

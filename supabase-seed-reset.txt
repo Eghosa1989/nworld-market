@@ -1,0 +1,11 @@
+BEGIN;
+
+DELETE FROM wishlist_items;
+DELETE FROM products;
+DELETE FROM categories;
+
+INSERT INTO categories (name) VALUES ('Seafood');
+INSERT INTO categories (name) VALUES ('Meat');
+INSERT INTO categories (name) VALUES ('Snacks');
+
+COMMIT;

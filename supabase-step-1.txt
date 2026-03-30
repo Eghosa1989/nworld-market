@@ -1,0 +1,53 @@
+-- 1. Create a table for Categories
+CREATE TABLE IF NOT EXISTS public.categories (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text UNIQUE NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 2. Create a table for Products
+CREATE TABLE IF NOT EXISTS public.products (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  description text,
+  category text NOT NULL REFERENCES public.categories(name) ON DELETE CASCADE,
+  image text NOT NULL,
+  images text[] DEFAULT '{}'::text[],
+  rating numeric DEFAULT 5.0,
+  badge text,
+  search_tags text[] DEFAULT '{}'::text[],
+  sizes jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 3. Create a table for Orders
+CREATE TABLE IF NOT EXISTS public.orders (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_email text NOT NULL,
+  customer_name text NOT NULL,
+  customer_phone text,
+  total numeric NOT NULL,
+  status text DEFAULT 'Pending'::text,
+  payment_method text NOT NULL,
+  items jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public categories are viewable by everyone." ON public.categories;
+CREATE POLICY "Public categories are viewable by everyone."
+  ON public.categories FOR SELECT
+  USING ( true );
+
+DROP POLICY IF EXISTS "Products are viewable by everyone." ON public.products;
+CREATE POLICY "Products are viewable by everyone."
+  ON public.products FOR SELECT
+  USING ( true );
+
+DROP POLICY IF EXISTS "Anyone can create an order." ON public.orders;
+CREATE POLICY "Anyone can create an order."
+  ON public.orders FOR INSERT
+  WITH CHECK ( true );
