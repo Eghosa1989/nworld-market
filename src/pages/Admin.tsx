@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   Home, Package, Users, Settings, Plus, Edit2, Trash2,
-  Menu, X, LogOut, CheckCircle, Clock, Search, Image as ImageIcon
+  Menu, X, LogOut, CheckCircle, Clock, Search, Image as ImageIcon, Tag
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -33,6 +33,20 @@ export default function Admin() {
   const [editingProductId, setEditingProductId] = useState<string | number | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | number | null>(null);
 
+  // Orders Filter State
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState('All');
+
+  // Add Category Modal State
+  const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Settings State
+  const [settingsEmail, setSettingsEmail] = useState('payment@uniqnpremiummarket.com');
+  const [settingsDeliveryFee, setSettingsDeliveryFee] = useState('15.00');
+  const [settingsBanner, setSettingsBanner] = useState('');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
   // Form State
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState(categories[0] ?? 'Pantry');
@@ -55,6 +69,22 @@ export default function Admin() {
     }
     return filtered;
   }, [products, searchQuery, categoryFilter]);
+
+  const derivedOrders = useMemo(() => {
+    let filtered = orders;
+    if (orderSearch.trim()) {
+      const q = orderSearch.toLowerCase();
+      filtered = filtered.filter(o =>
+        o.customerName.toLowerCase().includes(q) ||
+        o.customerEmail.toLowerCase().includes(q) ||
+        o.id.toLowerCase().includes(q)
+      );
+    }
+    if (orderStatusFilter !== 'All') {
+      filtered = filtered.filter(o => o.status === orderStatusFilter);
+    }
+    return filtered;
+  }, [orders, orderSearch, orderStatusFilter]);
 
   const openAddModal = () => {
     setEditingProductId(null);
@@ -115,6 +145,16 @@ export default function Admin() {
     if (rememberedEmail) {
       setAdminEmail(rememberedEmail);
     }
+  }, []);
+
+  useEffect(() => {
+    supabase.from('store_settings').select('*').eq('id', 1).single().then(({ data }) => {
+      if (data) {
+        if (data.etransfer_email) setSettingsEmail(data.etransfer_email);
+        if (data.delivery_fee != null) setSettingsDeliveryFee(String(data.delivery_fee));
+        if (data.banner_text != null) setSettingsBanner(data.banner_text);
+      }
+    });
   }, []);
 
   const handleAdminSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -371,14 +411,11 @@ export default function Admin() {
           {activeTab === 'products' && (
             <div className="flex gap-2">
               <button 
-                onClick={() => {
-                  const newCategory = prompt("Enter new category name:");
-                  if (newCategory?.trim()) addCategory(newCategory.trim());
-                }} 
+                onClick={() => { setNewCategoryName(''); setIsAddCategoryModalOpen(true); }} 
                 className="bg-orange-100 hover:bg-orange-200 text-orange-900 px-4 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm flex items-center gap-2"
                 title="Add Category"
               >
-                <Plus size={18} /> <span className="hidden sm:inline">Add Category</span>
+                <Tag size={18} /> <span className="hidden sm:inline">Add Category</span>
               </button>
               <button 
                 onClick={openAddModal} 
@@ -408,8 +445,8 @@ export default function Admin() {
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
                   <div className="p-4 bg-orange-100 text-orange-700 rounded-2xl"><Package size={28}/></div>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Rare / Low Stock</h3>
-                    <p className="text-3xl font-black text-gray-900">{products.filter(p => p.sizes?.some(s => s.price > 100)).length}</p>
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Orders</h3>
+                    <p className="text-3xl font-black text-gray-900">{orders.length}</p>
                   </div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
@@ -529,9 +566,13 @@ export default function Admin() {
                       {derivedProducts.map(product => (
                         <tr key={product.id} className="hover:bg-orange-50/50 transition-colors">
                           <td className="px-6 py-4 font-bold text-gray-900 flex items-center gap-4">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 border border-gray-200">
-                              <ImageIcon size={20} />
-                            </div>
+                            {product.image ? (
+                              <img src={product.image} alt={product.name} className="w-12 h-12 object-cover rounded-lg border border-gray-200 shrink-0" />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 border border-gray-200 shrink-0">
+                                <ImageIcon size={20} />
+                              </div>
+                            )}
                             {product.name}
                           </td>
                           <td className="px-6 py-4 font-medium text-gray-600">
@@ -567,6 +608,33 @@ export default function Admin() {
           {activeTab === 'orders' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row gap-4 justify-between bg-gray-50/50">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="text"
+                      title="Search orders"
+                      aria-label="Search orders"
+                      placeholder="Search by customer name, email or order ID..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                    />
+                  </div>
+                  <select
+                    title="Filter by status"
+                    aria-label="Filter by status"
+                    className="bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 block p-2.5 outline-none"
+                    value={orderStatusFilter}
+                    onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Pending">Awaiting E-Transfer</option>
+                    <option value="Paid">Payment Verified</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                  </select>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
@@ -579,7 +647,10 @@ export default function Admin() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {orders.map(order => (
+                        {derivedOrders.length === 0 && (
+                          <tr><td colSpan={5} className="p-8 text-center text-gray-500 font-medium">No orders found</td></tr>
+                        )}
+                        {derivedOrders.map(order => (
                           <tr key={order.id} className="hover:bg-orange-50/50 transition-colors">
                             <td className="px-6 py-4">
                               <div className="font-mono text-gray-900 font-bold bg-gray-100 inline-block px-2 py-0.5 rounded text-xs mb-1">{order.id}</div>
@@ -646,6 +717,7 @@ export default function Admin() {
                         <tr>
                           <th className="px-6 py-4 font-bold">User ID</th>
                           <th className="px-6 py-4 font-bold">Email</th>
+                          <th className="px-6 py-4 font-bold text-center">Orders</th>
                           <th className="px-6 py-4 font-bold text-right">Join Date</th>
                         </tr>
                       </thead>
@@ -656,7 +728,17 @@ export default function Admin() {
                               <div className="font-mono text-gray-900 font-bold bg-gray-100 inline-block px-2 py-0.5 rounded text-xs mb-1">USR-{String(user.id).padStart(3, '0')}</div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="font-bold text-gray-900">{user.email}</div>
+                              <div className="font-bold text-gray-900 flex items-center gap-2">
+                                {user.email}
+                                {user.isAdmin && (
+                                  <span className="bg-orange-600 text-white text-xs font-black px-2 py-0.5 rounded-full">ADMIN</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <span className="font-bold text-gray-900">
+                                {orders.filter(o => o.customerEmail === user.email).length}
+                              </span>
                             </td>
                             <td className="px-6 py-4 text-right text-gray-500 font-medium">
                               {new Date(user.joinDate).toLocaleDateString()}
@@ -681,7 +763,7 @@ export default function Admin() {
                 <div className="space-y-6">
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label className="block text-sm font-black text-gray-800 mb-2">E-Transfer Receiving Email</label>
-                    <input title="Receiving Email" aria-label="Receiving Email" type="email" defaultValue="payment@uniqnpremiummarket.com" className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium" />
+                    <input title="Receiving Email" aria-label="Receiving Email" type="email" value={settingsEmail} onChange={e => setSettingsEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium" />
                     <p className="text-xs font-medium text-gray-500 mt-2 flex items-center gap-1"><CheckCircle size={14} className="text-green-500"/> This is the exact email shown to customers during checkout.</p>
                   </div>
                   
@@ -689,21 +771,37 @@ export default function Admin() {
                     <label className="block text-sm font-black text-gray-800 mb-2">Standard Delivery Fee ($)</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-500">$</span>
-                      <input title="Delivery Fee" aria-label="Delivery Fee" type="number" defaultValue="15.00" className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium" />
+                      <input title="Delivery Fee" aria-label="Delivery Fee" type="number" value={settingsDeliveryFee} onChange={e => setSettingsDeliveryFee(e.target.value)} className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium" />
                     </div>
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                     <label className="block text-sm font-black text-gray-800 mb-2">Storefront Announcement Banner</label>
-                    <textarea title="Announcement Banner" aria-label="Announcement Banner" rows={3} placeholder="e.g. Due to weather, expect slight delays..." className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium resize-none"></textarea>
+                    <textarea title="Announcement Banner" aria-label="Announcement Banner" rows={3} value={settingsBanner} onChange={e => setSettingsBanner(e.target.value)} placeholder="e.g. Due to weather, expect slight delays..." className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none font-medium resize-none"></textarea>
                     <p className="text-xs font-medium text-gray-500 mt-2">Leave blank to hide the banner from the website.</p>
                   </div>
                 </div>
                 
                 <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
-                  <button className="text-gray-600 hover:text-gray-900 font-bold px-6 py-3 rounded-xl transition-colors">Cancel</button>
-                  <button className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all active:scale-[0.98]">
-                    Save All Changes
+                  <button type="button" className="text-gray-600 hover:text-gray-900 font-bold px-6 py-3 rounded-xl transition-colors">Cancel</button>
+                  <button
+                    type="button"
+                    disabled={settingsSaving}
+                    onClick={async () => {
+                      setSettingsSaving(true);
+                      const { error } = await supabase.from('store_settings').upsert({
+                        id: 1,
+                        etransfer_email: settingsEmail.trim(),
+                        delivery_fee: parseFloat(settingsDeliveryFee) || 15,
+                        banner_text: settingsBanner.trim(),
+                      });
+                      setSettingsSaving(false);
+                      if (error) toast.error('Failed to save. Make sure the store_settings table exists in Supabase.');
+                      else toast.success('Settings saved successfully!');
+                    }}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-8 rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {settingsSaving ? 'Saving...' : 'Save All Changes'}
                   </button>
                 </div>
               </div>
@@ -878,6 +976,49 @@ export default function Admin() {
             </div>
           );
         })()}
+
+        {isAddCategoryModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in duration-200 p-6">
+              <div className="flex justify-between items-center mb-5">
+                <h2 className="text-xl font-black text-gray-900 flex items-center gap-2"><Tag size={20} className="text-orange-600" /> Add Category</h2>
+                <button title="Close" aria-label="Close" onClick={() => setIsAddCategoryModalOpen(false)} className="text-gray-500 hover:text-gray-900"><X size={20}/></button>
+              </div>
+              <input
+                type="text"
+                title="Category name"
+                aria-label="Category name"
+                placeholder="e.g. Beverages, Spices..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none font-medium mb-6"
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newCategoryName.trim()) {
+                    addCategory(newCategoryName.trim());
+                    setIsAddCategoryModalOpen(false);
+                  }
+                }}
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setIsAddCategoryModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">Cancel</button>
+                <button
+                  type="button"
+                  disabled={!newCategoryName.trim()}
+                  onClick={() => {
+                    if (newCategoryName.trim()) {
+                      addCategory(newCategoryName.trim());
+                      setIsAddCategoryModalOpen(false);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 rounded-xl font-bold text-white bg-orange-600 hover:bg-orange-700 transition-colors disabled:opacity-50"
+                >
+                  Add Category
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

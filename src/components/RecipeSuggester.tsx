@@ -150,7 +150,7 @@ export default function RecipeSuggester() {
                   <img
                     src={bundle.image}
                     alt={bundle.title}
-                    className="h-32 w-full object-cover sm:h-full sm:min-h-[140px]"
+                    className="h-32 w-full object-cover sm:h-full sm:min-h-36"
                   />
                 </div>
 
