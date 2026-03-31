@@ -7,6 +7,7 @@ import FAQ from '../components/FAQ';
 import Cart from '../components/Cart';
 import LoginModal from '../components/LoginModal';
 import ProfileModal from '../components/ProfileModal';
+import UpdatePasswordModal from '../components/UpdatePasswordModal';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -16,6 +17,7 @@ export default function Storefront() {
       <Navbar />
       <Cart />
       <LoginModal />
+      <UpdatePasswordModal />
       <ProfileModal />
       <main>
         <Hero />

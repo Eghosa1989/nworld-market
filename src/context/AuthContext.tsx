@@ -17,9 +17,13 @@ interface AuthContextType {
   setIsLoginModalOpen: (isOpen: boolean) => void;
   isProfileModalOpen: boolean;
   setIsProfileModalOpen: (isOpen: boolean) => void;
+  isUpdatePasswordModalOpen: boolean;
+  setIsUpdatePasswordModalOpen: (isOpen: boolean) => void;
   login: (email: string, password?: string, isSignUp?: boolean, name?: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   userEmail: string | null;
   currentUser: User | null;
   users: User[];
@@ -35,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isUpdatePasswordModalOpen, setIsUpdatePasswordModalOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -68,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (_event === 'PASSWORD_RECOVERY') {
+        setIsUpdatePasswordModalOpen(true);
+      }
+      
       if (session?.user) {
         setIsLoggedIn(true);
         setUserEmail(session.user.email ?? null);
@@ -196,6 +205,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
+  const resetPassword = async (email: string) => {
+    setAuthError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`, // Redirects to home page
+    });
+    if (error) {
+      setAuthError(error.message);
+      throw error;
+    } else {
+      toast.success('Password reset link sent to your email.');
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    setAuthError(null);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      setAuthError(error.message);
+      throw error;
+    } else {
+      toast.success('Password updated successfully.');
+      setIsUpdatePasswordModalOpen(false);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       isLoggedIn,
@@ -203,9 +237,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoginModalOpen,
       isProfileModalOpen,
       setIsProfileModalOpen,
+      isUpdatePasswordModalOpen,
+      setIsUpdatePasswordModalOpen,
       login,
       loginWithGoogle,
       logout,
+      resetPassword,
+      updatePassword,
       userEmail,
       currentUser,
       users,

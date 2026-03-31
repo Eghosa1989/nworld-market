@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LoginModal() {
-  const { isLoginModalOpen, setIsLoginModalOpen, login, loginWithGoogle, setPendingAction, authError, clearAuthError } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { isLoginModalOpen, setIsLoginModalOpen, login, loginWithGoogle, resetPassword, setPendingAction, authError, clearAuthError } = useAuth();
+  const [mode, setMode] = useState<'signin' | 'signup' | 'forgot-password'>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +31,17 @@ export default function LoginModal() {
   const handleEmailAuth = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthLoading(true);
+    if (mode === 'forgot-password') {
+      try {
+        await resetPassword(email.trim());
+        setMode('signin');
+      } catch (error) {
+        console.error('Password reset error', error);
+      } finally {
+        setAuthLoading(false);
+      }
+      return;
+    }
     try {
       await login(email.trim(), password, mode === 'signup', name.trim());
     } catch (error) {
@@ -119,31 +130,35 @@ export default function LoginModal() {
             >
                 <div className="mb-6">
                   <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                    {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                    {mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Reset Password'}
                   </h2>
-                  <p className="text-gray-500 text-sm font-medium mt-1">
+                  <p className="text-gray-500 text-sm font-medium mt-1">        
                     {mode === 'signin'
                       ? 'Sign in below to access your cart, wishlist, and track your orders.'
-                      : 'Sign up below to start shopping and tracking orders.'}
+                      : mode === 'signup'
+                      ? 'Sign up below to start shopping and tracking orders.'
+                      : 'Enter your email address and we will send you a link to reset your password.'} 
                   </p>
                 </div>
 
-                <div className="mb-5 inline-flex w-full rounded-xl bg-gray-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setMode('signin')}
-                    className={`w-1/2 rounded-lg px-3 py-2 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-orange-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('signup')}
-                    className={`w-1/2 rounded-lg px-3 py-2 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-orange-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    Sign Up
-                  </button>
-                </div>
+                {mode !== 'forgot-password' && (
+                  <div className="mb-5 inline-flex w-full rounded-xl bg-gray-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setMode('signin')}
+                      className={`w-1/2 rounded-lg px-3 py-2 text-sm font-bold transition-all ${mode === 'signin' ? 'bg-white text-orange-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode('signup')}
+                      className={`w-1/2 rounded-lg px-3 py-2 text-sm font-bold transition-all ${mode === 'signup' ? 'bg-white text-orange-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+                )}
 
                 <form onSubmit={handleEmailAuth} className="space-y-3.5" autoComplete="off">
                   {mode === 'signup' && (
@@ -172,32 +187,45 @@ export default function LoginModal() {
                       autoComplete="off"
                     />
                   </div>
-                  <div>
-                    <label className="mb-1 block text-sm font-bold text-gray-700">Password</label>
-                    {mode === 'signup' ? (
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                        placeholder="At least 6 characters"
-                        autoComplete="new-password"
-                      />
-                    ) : (
-                      <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                        className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
-                        placeholder="Enter your password"
-                        autoComplete="new-password"
-                      />
-                    )}
-                  </div>
+                  {mode !== 'forgot-password' && (
+                    <div>
+                      <label className="mb-1 block text-sm font-bold text-gray-700">Password</label>
+                      {mode === 'signup' ? (
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          required
+                          minLength={6}
+                          className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                          placeholder="At least 6 characters"
+                          autoComplete="new-password"
+                        />
+                      ) : (
+                        <div>
+                          <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            minLength={6}
+                            className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm font-medium text-gray-800 outline-none transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-200"
+                            placeholder="Enter your password"
+                            autoComplete="current-password"
+                          />
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setMode('forgot-password')}
+                              className="text-sm font-semibold text-orange-600 hover:text-orange-700"
+                            >
+                              Forgot password?
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {authError && (
                     <div className="p-4 bg-red-50 text-red-600 font-medium text-sm rounded-xl border border-red-100 flex items-start gap-3">
@@ -211,17 +239,31 @@ export default function LoginModal() {
                     disabled={authLoading || googleLoading}
                     className="w-full rounded-xl bg-orange-600 py-3 text-sm font-bold text-white transition-all hover:bg-orange-700 disabled:opacity-50"
                   >
-                    {authLoading ? (mode === 'signin' ? 'Signing in...' : 'Signing up...') : (mode === 'signin' ? 'Sign In' : 'Sign Up')}
+                    {authLoading ? (mode === 'signin' ? 'Signing in...' : mode === 'signup' ? 'Signing up...' : 'Sending...') : (mode === 'signin' ? 'Sign In' : mode === 'signup' ? 'Sign Up' : 'Send Reset Link')}
                   </button>
+                  
+                  {mode === 'forgot-password' && (
+                    <div className="text-center mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setMode('signin')}
+                        className="text-sm font-semibold text-gray-500 hover:text-gray-900"
+                      >
+                        Back to Sign In
+                      </button>
+                    </div>
+                  )}
                 </form>
 
-                <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-gray-400">
-                  <div className="h-px flex-1 bg-gray-200" />
-                  Or
-                  <div className="h-px flex-1 bg-gray-200" />
-                </div>
+                {mode !== 'forgot-password' && (
+                  <>
+                    <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.3em] text-gray-400">
+                      <div className="h-px flex-1 bg-gray-200" />
+                      Or
+                      <div className="h-px flex-1 bg-gray-200" />
+                    </div>
 
-                <button
+                    <button
                   type="button"
                   disabled={googleLoading || authLoading}
                   onClick={handleGoogleLogin}
@@ -255,7 +297,9 @@ export default function LoginModal() {
                       : 'Use sign up to create a customer account, or continue with Google for one-tap access.'}
                   </p>
                 </div>
-              </motion.div>
+                  </>
+                )}
+            </motion.div>
           </div>
         </motion.div>
       </div>

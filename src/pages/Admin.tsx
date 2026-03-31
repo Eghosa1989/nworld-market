@@ -14,12 +14,13 @@ import { type Product } from '../data/products';
 export default function Admin() {
   const { products, categories, addCategory, addProduct, updateProduct, deleteProduct } = useProducts();
   const { orders, updateOrderStatus } = useOrders();
-  const { users, isLoggedIn, currentUser, login, logout, authError, clearAuthError } = useAuth();
+  const { users, isLoggedIn, currentUser, login, logout, resetPassword, authError, clearAuthError } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
+  const [isResetMode, setIsResetMode] = useState(false);
 
   // Products State
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,6 +121,19 @@ export default function Admin() {
     event.preventDefault();
     setAdminLoading(true);
     clearAuthError();
+
+    if (isResetMode) {
+      try {
+        await resetPassword(adminEmail.trim());
+        setIsResetMode(false);
+      } catch (error) {
+        console.error('Password reset error', error);
+      } finally {
+        setAdminLoading(false);
+      }
+      return;
+    }
+
     try {
       await login(adminEmail.trim(), adminPassword, false);
       window.localStorage.setItem('admin-remembered-email', adminEmail.trim());
@@ -152,7 +166,11 @@ export default function Admin() {
           
           <div className="text-center mb-8 mt-2">
             <h1 className="text-3xl font-black text-orange-950 tracking-tight">UNIQ &quot;N&quot; ADMIN</h1>
-            <p className="text-gray-500 mt-2 font-medium">Sign in with your backend admin account to manage your store</p>
+            <p className="text-gray-500 mt-2 font-medium">
+              {isResetMode 
+                ? 'Enter your admin email to receive a password reset link' 
+                : 'Sign in with your backend admin account to manage your store'}
+            </p>
           </div>
 
           <form onSubmit={handleAdminSignIn} className="space-y-5">
@@ -169,29 +187,50 @@ export default function Admin() {
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all font-medium text-gray-800"
               />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1.5">Password</label>
-              <input
-                type="password"
-                title="Password"
-                aria-label="Password"
-                required
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                autoComplete="current-password"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all font-medium text-gray-800"
-              />
-              <p className="mt-2 text-xs font-medium text-gray-500">This page remembers your email only. Passwords are never stored in the frontend.</p>
-            </div>
+            {!isResetMode && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5">Password</label>
+                <input
+                  type="password"
+                  title="Password"
+                  aria-label="Password"
+                  required
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all font-medium text-gray-800"
+                />
+                <div className="mt-2 flex justify-between items-center">
+                  <p className="text-xs font-medium text-gray-500">This page remembers your email only.</p>        
+                  <button
+                    type="button"
+                    onClick={() => setIsResetMode(true)}
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+            )}
             <button
               type="submit"
               disabled={adminLoading}
               className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md mt-6 active:scale-[0.98] disabled:opacity-50"
             >
-              {adminLoading ? 'Signing in...' : 'Secure Login'}
+              {adminLoading ? (isResetMode ? 'Sending...' : 'Signing in...') : (isResetMode ? 'Send Reset Link' : 'Secure Login')}
             </button>
+            {isResetMode && (
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsResetMode(false)}
+                  className="text-sm font-semibold text-gray-500 hover:text-gray-900"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            )}
           </form>
-
           <div className="mt-5 space-y-5">
             <p className="text-sm text-gray-500 font-medium text-center">
               Only accounts marked as admin in the backend profile table can enter this page.
